@@ -1,0 +1,887 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "ad70f727-23aa-48e1-a03a-3c9d3f4613b3",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "import matplotlib.pyplot as plt\n",
+    "import seaborn as sns\n",
+    "from sklearn.model_selection import train_test_split\n",
+    "from sklearn.model_selection import StratifiedKFold, KFold, GridSearchCV\n",
+    "from sklearn.feature_extraction.text import TfidfVectorizer\n",
+    "from sklearn.svm import SVC\n",
+    "from sklearn.metrics import accuracy_score, confusion_matrix, f1_score\n",
+    "import re\n",
+    "import string\n",
+    "from nltk.corpus import stopwords\n",
+    "from nltk.tokenize import word_tokenize\n",
+    "from nltk.stem.porter import PorterStemmer\n",
+    "from nltk.stem import WordNetLemmatizer"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "9d046619-7cfb-42e4-a956-d1d8956f4140",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "test = pd.read_csv(\"C:/Users/jonah/Downloads/test.csv\")\n",
+    "train = pd.read_csv(\"C:/Users/jonah/Downloads/train.csv\")\n",
+    "sample = pd.read_csv(\"C:/Users/jonah/Downloads/sample_submission.csv\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "ee79ac2a-130f-4ae6-bfda-a56bdcc20c82",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>id</th>\n",
+       "      <th>keyword</th>\n",
+       "      <th>location</th>\n",
+       "      <th>text</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>Just happened a terrible car crash</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>2</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>Heard about #earthquake is different cities, s...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>3</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>there is a forest fire at spot pond, geese are...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>9</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>Apocalypse lighting. #Spokane #wildfires</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>11</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>Typhoon Soudelor kills 28 in China and Taiwan</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   id keyword location                                               text\n",
+       "0   0     NaN      NaN                 Just happened a terrible car crash\n",
+       "1   2     NaN      NaN  Heard about #earthquake is different cities, s...\n",
+       "2   3     NaN      NaN  there is a forest fire at spot pond, geese are...\n",
+       "3   9     NaN      NaN           Apocalypse lighting. #Spokane #wildfires\n",
+       "4  11     NaN      NaN      Typhoon Soudelor kills 28 in China and Taiwan"
+      ]
+     },
+     "execution_count": 3,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "test.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "ea339d1f-24d5-4cc5-a71d-a115a672fd30",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>id</th>\n",
+       "      <th>keyword</th>\n",
+       "      <th>location</th>\n",
+       "      <th>text</th>\n",
+       "      <th>target</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>1</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>Our Deeds are the Reason of this #earthquake M...</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>4</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>Forest fire near La Ronge Sask. Canada</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>5</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>All residents asked to 'shelter in place' are ...</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>6</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>13,000 people receive #wildfires evacuation or...</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>7</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>Just got sent this photo from Ruby #Alaska as ...</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   id keyword location                                               text  \\\n",
+       "0   1     NaN      NaN  Our Deeds are the Reason of this #earthquake M...   \n",
+       "1   4     NaN      NaN             Forest fire near La Ronge Sask. Canada   \n",
+       "2   5     NaN      NaN  All residents asked to 'shelter in place' are ...   \n",
+       "3   6     NaN      NaN  13,000 people receive #wildfires evacuation or...   \n",
+       "4   7     NaN      NaN  Just got sent this photo from Ruby #Alaska as ...   \n",
+       "\n",
+       "   target  \n",
+       "0       1  \n",
+       "1       1  \n",
+       "2       1  \n",
+       "3       1  \n",
+       "4       1  "
+      ]
+     },
+     "execution_count": 4,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "train.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "id": "55e61ee4-3724-407c-896e-3878925437a7",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>id</th>\n",
+       "      <th>target</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>2</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>3</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>9</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>11</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   id  target\n",
+       "0   0       0\n",
+       "1   2       0\n",
+       "2   3       0\n",
+       "3   9       0\n",
+       "4  11       0"
+      ]
+     },
+     "execution_count": 5,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "sample.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "id": "63967c95-aab8-48a6-b43f-0a16f8c95c23",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "id             0\n",
+       "keyword       61\n",
+       "location    2533\n",
+       "text           0\n",
+       "target         0\n",
+       "dtype: int64"
+      ]
+     },
+     "execution_count": 6,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "train.isnull().sum()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "id": "9586e797-1f64-4969-90dc-e25a6e991ed8",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th># of nulls</th>\n",
+       "      <th>% of nulls</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>id</th>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>keyword</th>\n",
+       "      <td>87.0</td>\n",
+       "      <td>0.799926</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>location</th>\n",
+       "      <td>3638.0</td>\n",
+       "      <td>33.449798</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>text</th>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>target</th>\n",
+       "      <td>3263.0</td>\n",
+       "      <td>30.001839</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "          # of nulls  % of nulls\n",
+       "id               0.0    0.000000\n",
+       "keyword         87.0    0.799926\n",
+       "location      3638.0   33.449798\n",
+       "text             0.0    0.000000\n",
+       "target        3263.0   30.001839"
+      ]
+     },
+     "execution_count": 7,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_concat = pd.concat([train, test], axis=0).reset_index(drop=True)\n",
+    "\n",
+    "nulls = pd.DataFrame(np.c_[df_concat.isnull().sum(), (df_concat.isnull().sum()/len(df_concat))*100], \n",
+    "                     columns=['# of nulls', '% of nulls'], \n",
+    "                     index=df_concat.columns)\n",
+    "\n",
+    "nulls"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "e527b33f-cac6-484a-a694-3e72e01df080",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0    4342\n",
+       "1    3271\n",
+       "Name: target, dtype: int64"
+      ]
+     },
+     "execution_count": 8,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "train.target.value_counts()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "id": "99c44942-a288-40e6-93b9-13769c15d2f0",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0       Our Deeds are the Reason of this #earthquake M...\n",
+       "1                  Forest fire near La Ronge Sask. Canada\n",
+       "2       All residents asked to 'shelter in place' are ...\n",
+       "3       13,000 people receive #wildfires evacuation or...\n",
+       "4       Just got sent this photo from Ruby #Alaska as ...\n",
+       "                              ...                        \n",
+       "7608    Two giant cranes holding a bridge collapse int...\n",
+       "7609    @aria_ahrary @TheTawniest The out of control w...\n",
+       "7610    M1.94 [01:04 UTC]?5km S of Volcano Hawaii. htt...\n",
+       "7611    Police investigating after an e-bike collided ...\n",
+       "7612    The Latest: More Homes Razed by Northern Calif...\n",
+       "Name: text, Length: 3271, dtype: object"
+      ]
+     },
+     "execution_count": 9,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "train[train.target == 1]['text']"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "id": "f5f54af6-c473-469f-b2a9-a4897bcae770",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "15                                         What's up man?\n",
+       "16                                          I love fruits\n",
+       "17                                       Summer is lovely\n",
+       "18                                      My car is so fast\n",
+       "19                           What a goooooooaaaaaal!!!!!!\n",
+       "                              ...                        \n",
+       "7581    @engineshed Great atmosphere at the British Li...\n",
+       "7582    Cramer: Iger's 3 words that wrecked Disney's s...\n",
+       "7584    These boxes are ready to explode! Exploding Ki...\n",
+       "7587                                   Sirens everywhere!\n",
+       "7593    I just heard a really loud bang and everyone i...\n",
+       "Name: text, Length: 4342, dtype: object"
+      ]
+     },
+     "execution_count": 10,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "train[train.target == 0]['text']"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "id": "5dcdd4d1-8a01-449f-82d0-9f9d09a8c8cd",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def skip(text):\n",
+    "    text = re.sub(r'\\t', ' ', text)\n",
+    "    text = re.sub(r'\\n', ' ', text)\n",
+    "    return text"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "id": "7e2a9463-1359-4466-8649-ed17c86a359f",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def url(text):\n",
+    "    text = re.sub(r' \\w{1,3}\\.{3,3} http\\S{0,}', ' ', text)\n",
+    "    text = re.sub(r' \\w{1,3}Û_ http\\S{0,}', ' ', text)\n",
+    "    text = re.sub(r\"mp3 http\\S{0,}\", r\" \", text)\n",
+    "    text = re.sub(r\"rar http\\S{0,}\", r\" \", text)\n",
+    "    pattern = re.compile(r'( pin\\:\\d+ | via )http\\S{0,}')\n",
+    "    text = pattern.sub(r' ', text)\n",
+    "    pattern = re.compile(r'Full read by|Full read b|Full read|Full rea|Full re|Full r')\n",
+    "    text = pattern.sub(r' ', text)\n",
+    "    pattern = re.compile(r'Full story at|Full story a|Full story|Full stor|Full sto|Full st|Full s')\n",
+    "    text = pattern.sub(r' ', text)\n",
+    "    return text"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "id": "daf6cafa-972e-4044-9ac2-33bd85849b2d",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def clean(text):\n",
+    "    text = skip(text)\n",
+    "    text = re.sub(r'(&amp;|&gt;|&lt;)', \" \", text)\n",
+    "    text = re.sub(r\"\\s+\", \" \", text)\n",
+    "    text = url(text)\n",
+    "    text = re.sub(r'@\\S{0,}', ' USER ', text)\n",
+    "    text = re.sub(r\"\\s+\", \" \", text)\n",
+    "    text = re.sub(r'\\b(USER)( \\1\\b)+', r'\\1', text)\n",
+    "    text = re.sub(r'([a-zA-Z])\\1{1,}', r'\\1\\1', text)\n",
+    "    text = re.sub(r\"htt\\S{0,}\", \" \", text)\n",
+    "    text = re.sub(r\"[^a-zA-Z\\d\\s]\", \" \", text)\n",
+    "    text = text.strip()\n",
+    "    return text"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "id": "2e22cdd0-7d70-4810-a92c-89589cdf27f7",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "train.text = train.text.apply(clean)\n",
+    "test.text = test.text.apply(clean)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "id": "fcd5070a-fafa-4416-98f6-17ec3e1f4d2b",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "stopword = stopwords.words('english')\n",
+    "porter = PorterStemmer()\n",
+    "lemmatizer = WordNetLemmatizer()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "id": "19fccc29-5a53-40fa-84d3-b9c00c3324f7",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def prep(text):\n",
+    "    token = word_tokenize(text)\n",
+    "    token = [word.lower() for word in token]\n",
+    "    words = [word for word in token if word.isalpha()]\n",
+    "    words = [word for word in words if not word in stopword]\n",
+    "    stemmed = [porter.stem(word) for word in words]\n",
+    "    lematized = [lemmatizer.lemmatize(word) for word in stemmed]\n",
+    "    return lematized"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "id": "a3a2fef5-c091-4047-be11-d3a94b880c4a",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "train[\"prepped_text\"] = train.text.apply(prep)\n",
+    "test[\"prepped_text\"] = test.text.apply(prep)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "id": "5dd6d41e-5cc5-41e0-82d6-ac85db57e61d",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def join_list(tab):\n",
+    "    return \" \".join(tab)\n",
+    "train[\"prepped_text\"] = train[\"prepped_text\"].apply(join_list)\n",
+    "test[\"prepped_text\"] = test[\"prepped_text\"].apply(join_list)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "id": "49003895-5a24-47d8-8c6f-8d7a642802b0",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def transform_keyword(word) :\n",
+    "    return word.split('%20')\n",
+    "\n",
+    "train[\"keyword\"] = train.keyword.fillna(\" \")\n",
+    "test[\"keyword\"] = test.keyword.fillna(\" \")\n",
+    "\n",
+    "train[\"keyword\"] = train[\"keyword\"].apply(transform_keyword).apply(join_list)\n",
+    "test[\"keyword\"] = test[\"keyword\"].apply(transform_keyword).apply(join_list)\n",
+    "\n",
+    "train[\"prepped_text\"] = train[\"keyword\"] + \" \" + train[\"prepped_text\"] \n",
+    "test[\"prepped_text\"] = test[\"keyword\"] + \" \" + test[\"prepped_text\"] "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 37,
+   "id": "7ea4adcd-f167-4f5b-aa2e-7c047d891d55",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from sklearn.model_selection import train_test_split\n",
+    "\n",
+    "X_all = pd.concat([train[\"prepped_text\"], test[\"prepped_text\"]])\n",
+    "\n",
+    "tfidf = TfidfVectorizer(stop_words = 'english')\n",
+    "tfidf.fit(X_all)\n",
+    "\n",
+    "X = tfidf.transform(train[\"prepped_text\"])\n",
+    "X_test = tfidf.transform(test[\"prepped_text\"])\n",
+    "del X_all\n",
+    "train1, test1 = train_test_split(train, test_size=0.2)\n",
+    "train_x = train1[\"prepped_text\"]\n",
+    "train_y = train1[\"target\"]\n",
+    "\n",
+    "test_x = test1[\"prepped_text\"]\n",
+    "test_y = test1[\"target\"]\n",
+    "\n",
+    "X_train, X_val, y_train, y_val = train_test_split(X, train[\"target\"], test_size = 0.1, random_state = 42)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 21,
+   "id": "bdef4874-dd22-45d2-ab39-d5aa057760e1",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "parameters = { \n",
+    "    'gamma': [0.001, 0.01, 0.1, 0.4, 0.5, 0.6, 0.7, 1], \n",
+    "    'kernel': ['rbf'], \n",
+    "    'C': [0.001, 0.01, 0.1, 1, 1.5, 2, 3, 10],\n",
+    "}"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 22,
+   "id": "94850c9f-a838-4c27-8266-c945bba15a32",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "model = GridSearchCV(SVC(), parameters, cv=10, n_jobs=-1).fit(X_train, y_train)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 23,
+   "id": "6c75543f-9276-4454-9bf6-8443a5273e0e",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "{'C': 2, 'gamma': 0.4, 'kernel': 'rbf'}"
+      ]
+     },
+     "execution_count": 23,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "model.cv_results_['params'][model.best_index_]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 24,
+   "id": "74cc33c3-9741-4695-af55-032401d82f77",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(0.7887139107611548, 0.737357259380098)"
+      ]
+     },
+     "execution_count": 24,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "pred = model.predict(X_val)\n",
+    "accuracy_score(y_val, pred), f1_score(y_val, pred)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 25,
+   "id": "ddd0ddd3-8306-46fc-9a77-5f3593edb828",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "array([[375,  51],\n",
+       "       [110, 226]], dtype=int64)"
+      ]
+     },
+     "execution_count": 25,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "confusion_matrix(y_val, pred)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 26,
+   "id": "5b925e9b-6cb3-49b4-922b-1d50270009fe",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "pred = model.predict(X_test)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 43,
+   "id": "1e13c8c4-2551-4f1e-b272-b206f1172337",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>id</th>\n",
+       "      <th>text</th>\n",
+       "      <th>prediction</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Just happened a terrible car crash</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>1</td>\n",
+       "      <td>Heard about  earthquake is different cities  s...</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>2</td>\n",
+       "      <td>there is a forest fire at spot pond  geese are...</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>3</td>\n",
+       "      <td>Apocalypse lighting   Spokane  wildfires</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>4</td>\n",
+       "      <td>Typhoon Soudelor kills 28 in China and Taiwan</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   id                                               text  prediction\n",
+       "0   0                 Just happened a terrible car crash           1\n",
+       "1   1  Heard about  earthquake is different cities  s...           1\n",
+       "2   2  there is a forest fire at spot pond  geese are...           1\n",
+       "3   3           Apocalypse lighting   Spokane  wildfires           1\n",
+       "4   4      Typhoon Soudelor kills 28 in China and Taiwan           1"
+      ]
+     },
+     "execution_count": 43,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "results = pd.DataFrame({'id':test.index,\n",
+    "                        'text': test.text,\n",
+    "                        'prediction':pred})\n",
+    "results.head()"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.9.13"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
